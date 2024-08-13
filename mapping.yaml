@@ -1,0 +1,85 @@
+pipeline:
+  processors:
+    - resource: schema
+
+processor_resources:
+    - label: schema
+      mapping: |
+        if metadata("kafka_key").parse_json().keys().contains("seq") {
+          if metadata("kafka_key").parse_json().seq == metadata("kafka_offset") {
+            meta kafka_key = metadata("kafka_key").parse_json().without("node", "seq").string()
+          } else {
+            if this.length().or(0) == 0 {
+              meta kafka_key = metadata("kafka_key").parse_json().without("node", "seq").string()
+            } else {
+              root = deleted()
+              meta = deleted()
+            }
+          }
+        }
+
+tests:
+
+  - name: offset matches seq
+    target_processors: '/pipeline/processors'
+    environment: {}
+    input_batch:
+      - content: '{"deleted":false,"id":1,"schema":"{\"type\":\"record\",\"name\":\"car\",\"fields\":[{\"name\":\"model\",\"type\":\"string\"},{\"name\":\"make\",\"type\":\"string\"},{\"name\":\"year\",\"type\":\"float\"}]}","subject":"car","version":1}'
+        metadata:
+          kafka_key: '{"keytype":"SCHEMA","magic":1,"node":0,"seq":0,"subject":"car","version":1}'
+          kafka_offset: 0
+    output_batches:
+      -
+        - content_equals: '{"deleted":false,"id":1,"schema":"{\"type\":\"record\",\"name\":\"car\",\"fields\":[{\"name\":\"model\",\"type\":\"string\"},{\"name\":\"make\",\"type\":\"string\"},{\"name\":\"year\",\"type\":\"float\"}]}","subject":"car","version":1}'
+          metadata_equals:
+            kafka_key: '{"keytype":"SCHEMA","magic":1,"subject":"car","version":1}'
+
+  - name: offset doesn't match seq
+    target_processors: '/pipeline/processors'
+    environment: {}
+    input_batch:
+      - content: '{"deleted":false,"id":1,"schema":"{\"type\":\"record\",\"name\":\"car\",\"fields\":[{\"name\":\"model\",\"type\":\"string\"},{\"name\":\"make\",\"type\":\"string\"},{\"name\":\"year\",\"type\":\"float\"}]}","subject":"car","version":1}'
+        metadata:
+          kafka_key: '{"keytype":"SCHEMA","magic":1,"node":0,"seq":0,"subject":"car","version":1}'
+          kafka_offset: 1
+
+  - name: no seq
+    target_processors: '/pipeline/processors'
+    environment: {}
+    input_batch:
+      - content: '{"deleted":false,"id":1,"schema":"{\"type\":\"record\",\"name\":\"car\",\"fields\":[{\"name\":\"model\",\"type\":\"string\"},{\"name\":\"make\",\"type\":\"string\"},{\"name\":\"year\",\"type\":\"float\"}]}","subject":"car","version":1}'
+        metadata:
+          kafka_key: '{"foo":"bar","keytype":"SCHEMA","magic":1,"subject":"car","version":1}'
+          kafka_offset: 0
+    output_batches:
+      -
+        - content_equals: '{"deleted":false,"id":1,"schema":"{\"type\":\"record\",\"name\":\"car\",\"fields\":[{\"name\":\"model\",\"type\":\"string\"},{\"name\":\"make\",\"type\":\"string\"},{\"name\":\"year\",\"type\":\"float\"}]}","subject":"car","version":1}'
+          metadata_equals:
+            kafka_key: '{"foo":"bar","keytype":"SCHEMA","magic":1,"subject":"car","version":1}'
+
+  - name: no json in value
+    target_processors: '/pipeline/processors'
+    environment: { }
+    input_batch:
+      - content: 'foo'
+        metadata:
+          other_key: 'bar'
+          kafka_offset: 0
+    output_batches:
+      - - content_equals: 'foo'
+          metadata_equals:
+            other_key: 'bar'
+
+  - name: offset doesn't match seq but value is empty
+    target_processors: '/pipeline/processors'
+    environment: {}
+    input_batch:
+      - content: ''
+        metadata:
+          kafka_key: '{"keytype":"SCHEMA","magic":1,"node":0,"seq":0,"subject":"car","version":1}'
+          kafka_offset: 1
+    output_batches:
+      -
+        - content_equals: ''
+          metadata_equals:
+            kafka_key: '{"keytype":"SCHEMA","magic":1,"subject":"car","version":1}'

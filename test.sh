@@ -1,0 +1,1 @@
+rpk connect test  mapping.yaml

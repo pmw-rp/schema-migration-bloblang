@@ -1,0 +1,16 @@
+export SOURCE_CLUSTER=seed-redacted.fmc.prd.cloud.redpanda.com:9092
+export SOURCE_TOPIC=_schemas
+export CONSUMER_GROUP=foo
+export SOURCE_SASL_MECHANISM=SCRAM-SHA-256
+export SOURCE_SASL_USER=paul
+export SOURCE_SASL_PASSWORD=redacted
+
+export RPCN_HTTP_ENABLED=true
+export RPCN_HTTP_ADDRESS=0.0.0.0:4195
+export RPCN_DEBUG_ENABLED=true
+
+export TARGET_CLUSTER=seed-redacted.fmc.prd.cloud.redpanda.com:9092
+export TARGET_TOPIC=_schemas
+export TARGET_SASL_MECHANISM=SCRAM-SHA-256
+export TARGET_SASL_USER=paul
+export TARGET_SASL_PASSWORD=redacted

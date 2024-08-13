@@ -1,0 +1,57 @@
+http:
+  enabled: ${RPCN_HTTP_ENABLED}
+  address: ${RPCN_HTTP_ADDRESS}
+  root_path: /rp-connect
+  debug_endpoints: ${RPCN_DEBUG_ENABLED}
+
+redpanda:
+  seed_brokers: ["${TARGET_CLUSTER}"]
+  tls:
+    enabled: true
+  sasl:
+    - mechanism: ${TARGET_SASL_MECHANISM}
+      username: ${TARGET_SASL_USER}
+      password: ${TARGET_SASL_PASSWORD}
+
+input:
+  kafka:
+    addresses: ["${SOURCE_CLUSTER}"]
+    topics: ["${SOURCE_TOPIC}"]
+    target_version: 2.1.0
+    consumer_group: ${CONSUMER_GROUP}
+    checkpoint_limit: 1024
+    auto_replay_nacks: true
+    tls:
+      enabled: true
+    batching:
+      byte_size: 1000000
+      count: 0
+      period: 10s
+    sasl:
+      mechanism: ${SOURCE_SASL_MECHANISM}
+      user: ${SOURCE_SASL_USER}
+      password: ${SOURCE_SASL_PASSWORD}
+
+pipeline:
+  processors:
+    - resource: schema
+
+output:
+  kafka_franz:
+    seed_brokers: ["${TARGET_CLUSTER}"]
+    key: ${! meta("kafka_key").not_null().catch("") }
+    topic: ${TARGET_TOPIC}
+    partitioner: manual
+    partition: 0
+    client_id: rp-connect
+    idempotent_write: true
+    max_in_flight: 1
+    timeout: 10s
+    max_message_bytes: 1MB
+    compression: none
+    tls:
+      enabled: true
+    sasl:
+      - mechanism: ${TARGET_SASL_MECHANISM}
+        username: ${TARGET_SASL_USER}
+        password: ${TARGET_SASL_PASSWORD}
